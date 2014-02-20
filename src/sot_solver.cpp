@@ -126,9 +126,6 @@ MatrixXd SotSolver::testhouseholder(MatrixXd &A)
      MatrixXd L = R.transpose();
      MatrixXd Q = qr1.matrixQ();
      MatrixXd Qt = qr1.matrixQ().transpose();
-     std::cout << "The matrix L is:\n";
-     std::cout << L<< endl;
-     std::cout << "The matrix Qt is:\n";
   int rank = 0;
   const int rowsize = L.rows();
   const int colsize = L.cols();
@@ -139,33 +136,37 @@ MatrixXd SotSolver::testhouseholder(MatrixXd &A)
      else
      break;
   }
-     std::cout << Qt<< endl;
-     std::cout << "The matrix pinv is:\n";
-     std::cout << P.inverse()<< endl;
+     //std::cout << Qt<< endl;
+
+     //std::cout << "The matrix product is:\n";
+     //std::cout << (P*L*Qt)<< endl;
+     MatrixXd GT = givensmatrix(P,L);
      std::cout << "The matrix A is:\n";
      std::cout << A << endl;
      std::cout << "The matrix product is:\n";
-     std::cout << (P*L*Qt)<< endl;
-     MatrixXd GT = givensmatrix(P,L);
-     std::cout << "The matrix product is:\n";
      std::cout << (P*GT*L*Qt)<< endl;
-     //GT = (GT);
-     
-     
+      
      MatrixXd inverse;
      MatrixXd q =  Qt.block(0,0,rank,colsize);
      MatrixXd l = L.block(0,0,rank,rank);
      MatrixXd g = GT.block(0,0,rowsize,rank);
-     std::cout << "The matrix prod is is:\n"<<endl;
-     std::cout << g*l*q<<endl;
-     inverse = q.transpose()*l.inverse()*g.transpose();
-     std::cout << "orthonormality 1:\n";
-     std::cout << g*g.transpose()<< endl;
-     std::cout << "orthonormality 2:\n";
-     std::cout << q*q.transpose()<< endl;
-     //std::cout << (Q*Qt*(P*GT).transpose())<< endl;
+     std::cout << "The matrix prod block is:\n"<<endl;
+     std::cout << P*g*l*q<<endl;
+     inverse = q.transpose()*l.inverse()*g.transpose()*P.transpose();
      return inverse;
+}
+
+void SotSolver::pinv(MatrixXd &L)
+{
+     JacobiSVD<MatrixXd> svd(L, ComputeThinU | ComputeThinV);
+     MatrixXd D;D.setIdentity(svd.singularValues().rows(),svd.singularValues().rows());
+     for(int k = 0; k < svd.singularValues().rows(); k++)
+     {
+      D.col(k)(k) = svd.singularValues().col(0)(k);
  
+     }
+          std::cout << "singular" << D<<endl;
+     L= (svd.matrixV()*(D.inverse())*svd.matrixU().transpose());
 
 }
 
@@ -176,17 +177,16 @@ void SotSolver::testsolver(void)
      //Index rows = internal::random<Index>(20,200), cols = internal::random<int>(20,200);
      //Index rank = internal::random<Index>(1, (std::min)(rows, cols)-1);
      //createRandomPIMatrixOfRank(3,6,8,A);
-
+   VectorXd x = VectorXd::Random(8);
    A = MatrixXd::Random(6, 4) * MatrixXd::Random(4,8);
    //MatrixXf A = MatrixXf::Random(3, 2);
-   VectorXd b = VectorXd::Random(6);
-   //std::cout << "The least-squares solution using svd is:\n";
-   //std::cout << A.jacobiSvd(ComputeThinU | ComputeThinV).solve(b) << endl;  
-   
-   std::cout << A*(testhouseholder(A)*b);
+   VectorXd b = A * x;
+
+   std::cout << A*(testhouseholder(A)*b)<< endl;
    std::cout << "Here is the right hand side b:\n" << b << endl;
-
-
+   std::cout << "The b  svd is:\n";
+   std::cout << A*A.jacobiSvd(ComputeThinU | ComputeThinV).solve(b) << endl;  
+   
 }
 void SotSolver::testgivensmatrix(void)
 {
@@ -227,6 +227,7 @@ MatrixXd SotSolver::givensmatrix(MatrixXd& P,MatrixXd& m)
   //cout << "Here is the L matrix" << endl << L << endl;
   //std::cout << "rank of the matrix:\n" << rank << endl;
 
+  /*
   for(int j = rank-1 ; j >= 0; j--)
   {
      for(int i = rowsize -1; i >= rank; i--)
@@ -248,9 +249,34 @@ MatrixXd SotSolver::givensmatrix(MatrixXd& P,MatrixXd& m)
       
      }
      
-  }
+  }*/
+     MatrixXd givens_transformation ;
+     givens_transformation.setIdentity(rowsize,rowsize);
+     cout << "Here is the givenstransformedmatrix :" << endl << P << endl;
+     for(int i = rank ; i < rowsize; i++)
+     {
+         for(int j = rank-1 ; j >= 0; j--)
+        { 
+            
+            JacobiRotation<float> G;
+            Vector2f v(m.col(j)(j),m.col(j)(i));
+            G.makeGivens(v.x(), v.y());
+            temp_transformation.setIdentity(rowsize,rowsize);
+            temp_transformation(j,j) = G.c() ;
+            temp_transformation(i,i) = G.c() ;
+            temp_transformation(j,i) = G.s();
+            temp_transformation(i,j) = -G.s();    
+
+            m.applyOnTheLeft(j, i, G.adjoint());
+            //cout << "Here is the givenstransformedmatrix :" << endl << m << endl;
+            givens_transformation = temp_transformation.transpose()*givens_transformation;
+            //givens_transformation = givens_transformation*temp_transformation.transpose();
+        }    
+     }
+
+  //givens_transformation = P.transpose()*givens_transformation*P;
   m = givens_transformation * L;
-  cout << "Here is the GT * L" << endl << m << endl;
+  //cout << "Here is the GT * L" << endl << m << endl;
   return givens_transformation.transpose();
   
 }

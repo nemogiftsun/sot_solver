@@ -61,7 +61,8 @@ public: /* --- CONSTRUCTOR ---- */
 	  MatrixXd givensmatrix(MatrixXd& P,MatrixXd& m);
     void testgivensmatrix(void);
 	  void solve(void);
-    void testsolver(void);
+    void testsolver(void); 
+    void pinv(MatrixXd &Linv);
     void createRandomPIMatrixOfRank(int desired_rank, int rows, int cols, MatrixXd& m);
 
 	private: /* --- INTERNAL COMPUTATIONS --- */
