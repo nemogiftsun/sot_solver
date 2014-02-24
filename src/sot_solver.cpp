@@ -1,4 +1,5 @@
 #include "sot_solver/sot_solver.hh"
+
 #include <dynamic-graph/all-commands.h>
 
 #include <Eigen/Dense>
@@ -11,7 +12,7 @@ using namespace dynamicgraph::sot;
 using namespace dynamicgraph::sot::sotsolver;
 using namespace dynamicgraph;
 using namespace Eigen;
-
+using namespace timer;
 
 
 
@@ -28,10 +29,8 @@ SotSolver::SotSolver(const std::string& inName):Entity(inName)
 
 addCommand(std::string("testsolver"),
 		     makeCommandVoid0(*this,&SotSolver::testsolver,docstring));
-addCommand(std::string("testgivensmatrix"),
-		     makeCommandVoid0(*this,&SotSolver::testgivensmatrix,docstring));
-addCommand(std::string("solve"),
-		     makeCommandVoid0(*this,&SotSolver::solve,docstring));
+addCommand(std::string("testsomething"),
+		     makeCommandVoid0(*this,&SotSolver::testsomething,docstring));
 
 }
 SotSolver::~SotSolver()
@@ -39,15 +38,14 @@ SotSolver::~SotSolver()
    
 }
 
+/* create partial isometry matrix*/
 void SotSolver::createRandomPIMatrixOfRank(int desired_rank, int rows, int cols, MatrixXd& m)
 {
-
   if(desired_rank == 0)
   {
     m.setZero(rows,cols);
     return;
   }
-
   if(desired_rank == 1)
   {
     // here we normalize the vectors to get a partial isometry
@@ -70,90 +68,30 @@ void SotSolver::createRandomPIMatrixOfRank(int desired_rank, int rows, int cols,
 }
 
 
-MatrixXd SotSolver::testhouseholder(MatrixXd &A)
+void SotSolver::decomposeLQ(MatrixXd &A,MatrixXd &L,MatrixXd &Q,MatrixXd &P,const string& type)
 {
-     MatrixXd R;
 
-     std::cout << "------------------------------------------------\n";
-     std::cout << "------Normal one--------------------------------\n";
-     /*
-     // normal one 
-     HouseholderQR<MatrixXd> qr(A.rows(), A.cols());
-     qr.compute(A);
-     std::cout << "The matrix q is:\n";
-     MatrixXd hq = qr.householderQ();
-     R = qr.matrixQR().triangularView<Upper>();
-     std::cout << (hq) << endl;
-     std::cout << "The matrix r is:\n";
-     std::cout << R << endl;
-     std::cout << "The matrix product is:\n";
-     std::cout << (qr.householderQ()* R)<< endl;*/
-     std::cout << "-----------------------------------------------------\n";
-     std::cout << "------Column pivoting--------------------------------\n";
-     // column pivoting
-     ColPivHouseholderQR<MatrixXd> qr1(A.transpose().rows(), A.transpose().cols());
-     qr1.compute(A.transpose());
-     std::cout << "The matrix q is:\n";
-     MatrixXd hq = qr1.matrixQ();
-     std::cout << (hq) << endl;
-     std::cout << "The matrix qr is:\n";
-     R = qr1.matrixQR().triangularView<Upper>();
-     std::cout << (R) << endl;
-     std::cout << "The matrix p is:\n";
-     MatrixXd P = qr1.colsPermutation();
-     std::cout << (P) << endl;
-     //std::cout << "The matrix product is:\n";
-     //std::cout << (qr1.matrixQ()* R*P.inverse())<< endl;
-     std::cout << "------------------------------------------------\n";
-     std::cout << "------Full pivoting--------------------------------\n";
-     // full pivoting
-     /*
-     FullPivHouseholderQR<MatrixXd> qr2(A.rows(), A.cols());
-     qr2.compute(A.transpose());
-     std::cout << "The matrix q is:\n";
-     std::cout << (qr2.matrixQ()) << endl;
-     std::cout << "The matrix qr is:\n";
-     R = qr1.matrixQR().triangularView<Upper>();
-     std::cout << (R) << endl;
-     std::cout << "------------------------------------------------\n";
-     std::cout << "The matrix p is:\n";
-      P = qr1.colsPermutation();
-     std::cout << (P) << endl;
-     std::cout << "The matrix A is:\n";
-     std::cout << A << endl;
-     */
-     
-     MatrixXd L = R.transpose();
-     MatrixXd Q = qr1.matrixQ();
-     MatrixXd Qt = qr1.matrixQ().transpose();
-  int rank = 0;
-  const int rowsize = L.rows();
-  const int colsize = L.cols();
-  for(int k = 0; k < colsize; k++)
-  {
-     if(abs(L.col(k)(k)) > 0.00001)
-     (rank = rank+1);
+     if(type == "full")
+     {
+         // full pivoting
+				 FullPivHouseholderQR<MatrixXd> qr2(A.rows(), A.cols());
+				 qr2.compute(A.transpose());
+				 L = qr2.matrixQR().triangularView<Upper>().transpose();
+				 P = qr2.colsPermutation();
+         Q = qr2.matrixQ().transpose();    
+     }
      else
-     break;
-  }
-     //std::cout << Qt<< endl;
+     {
+                
+         // Column pivoting Householder QR decomposition
+				 ColPivHouseholderQR<MatrixXd> qr1(A.transpose().rows(), A.transpose().cols());
+				 qr1.compute(A.transpose());
+				 L = qr1.matrixQR().triangularView<Upper>().transpose();
+				 P = qr1.colsPermutation();
+				 Q = qr1.matrixQ();
 
-     //std::cout << "The matrix product is:\n";
-     //std::cout << (P*L*Qt)<< endl;
-     MatrixXd GT = givensmatrix(P,L);
-     std::cout << "The matrix A is:\n";
-     std::cout << A << endl;
-     std::cout << "The matrix product is:\n";
-     std::cout << (P*GT*L*Qt)<< endl;
-      
-     MatrixXd inverse;
-     MatrixXd q =  Qt.block(0,0,rank,colsize);
-     MatrixXd l = L.block(0,0,rank,rank);
-     MatrixXd g = GT.block(0,0,rowsize,rank);
-     std::cout << "The matrix prod block is:\n"<<endl;
-     std::cout << P*g*l*q<<endl;
-     inverse = q.transpose()*l.inverse()*g.transpose()*P.transpose();
-     return inverse;
+     }        
+
 }
 
 void SotSolver::pinv(MatrixXd &L)
@@ -172,117 +110,117 @@ void SotSolver::pinv(MatrixXd &L)
 
 void SotSolver::testsolver(void)
 {
-
-   MatrixXd A = MatrixXd::Random(6, 8);
-     //Index rows = internal::random<Index>(20,200), cols = internal::random<int>(20,200);
-     //Index rank = internal::random<Index>(1, (std::min)(rows, cols)-1);
-     //createRandomPIMatrixOfRank(3,6,8,A);
-   VectorXd x = VectorXd::Random(8);
-   A = MatrixXd::Random(6, 4) * MatrixXd::Random(4,8);
-   //MatrixXf A = MatrixXf::Random(3, 2);
-   VectorXd b = A * x;
-
-   std::cout << A*(testhouseholder(A)*b)<< endl;
+   // timer
+   Timer timer;
+ 
+   MatrixXd A;
+   MatrixXd x = VectorXd::Random(50);
+   A = MatrixXd::Random(6, 27) * MatrixXd::Random(27,50);
+   MatrixXd b;
+   b = A * x;
    std::cout << "Here is the right hand side b:\n" << b << endl;
    std::cout << "The b  svd is:\n";
+   timer.start();
    std::cout << A*A.jacobiSvd(ComputeThinU | ComputeThinV).solve(b) << endl;  
-   
-}
-void SotSolver::testgivensmatrix(void)
-{
-MatrixXd m = MatrixXd::Random(4,4);
-std::cout << "Here is the matrix m:\n" << m << endl;
-JacobiRotation<double> J;
-//cout << "Here is the m elements" << endl << m(0,1) << endl;
-Vector2f v(m.col(0)(2),m.col(0)(3));
-J.makeGivens(v.x(), v.y());
-//J.makeJacobi(m.col(0)(2),m.col(0)(3));
-//J.makeJacobi(m,2,3);
-cout << "Here is the J.m_c" << endl << J.c() << endl;
-cout << "Here is the J.m_s" << endl << J.s() << endl;
-m.applyOnTheLeft(2, 3, J.adjoint());
-//m.applyOnTheRight(0, 1, J);
-cout << "Here is the m" << endl << m << endl;
-
-   
+   timer.stop();
+   std::cout <<"svd time is "<<timer.getElapsedTimeInMicroSec()<< endl;
+   timer.start();
+   solve(A,b);
+   timer.stop();
+   std::cout <<"the solver side b is "<<A*b<< endl;
+   std::cout <<"cod solver time is "<<timer.getElapsedTimeInMicroSec()<< endl;
 
 }
-MatrixXd SotSolver::givensmatrix(MatrixXd& P,MatrixXd& m)
+void SotSolver::testsomething(void)
 {
-  int rowsize = m.rows();
-  int colsize = m.cols();
-  MatrixXd L = m;
-  
-  MatrixXd temp_transformation;
-  
-  temp_transformation.setIdentity(rowsize,rowsize);
-  int rank = 0;
-  for(int k = 0; k < colsize; k++)
-  {
-     if(abs(m.col(k)(k)) > 0.00001)
-     (rank = rank+1);
-     else
-     break;
-  }
-  //cout << "Here is the L matrix" << endl << L << endl;
-  //std::cout << "rank of the matrix:\n" << rank << endl;
+		MatrixXd m = MatrixXd::Random(4,4);
+   
+}
+/* solve lower triangular matrix by forward substitution */
+void SotSolver::solveLowerTriangular(MatrixXd& A, VectorXd& b)
+{
+    const int nrows = A.rows();
+    for (int i=0; i<nrows-1; i++)
+    {
+      b[i] = b[i]/A(i,i);
+      b.tail(nrows-i-1) -= b[i]* A.col(i).tail(nrows-i-1);
+    }
+    b[nrows-1] /= A(nrows-1,nrows-1);
+}
 
-  /*
-  for(int j = rank-1 ; j >= 0; j--)
-  {
-     for(int i = rowsize -1; i >= rank; i--)
-     {
-        MatrixXd givens_transformation = P;
-        JacobiRotation<float> G;
-        Vector2f v(m.col(j)(j),m.col(j)(i));
-        G.makeGivens(v.x(), v.y());
-        temp_transformation.setIdentity(rowsize,rowsize);
-        temp_transformation(j,j) = G.c() ;
-        temp_transformation(i,i) = G.c() ;
-        temp_transformation(j,i) = G.s();
-        temp_transformation(i,j) = -G.s();    
+/* triangularize lower triangular matrix using givens transformation */
+MatrixXd SotSolver::makeGivensTransformation(MatrixXd& m, const int rank)
+{
 
-        m.applyOnTheLeft(j, i, G.adjoint());
-        //cout << "Here is the givenstransformedmatrix :" << endl << m << endl;
-        //givens_transformation = temp_transformation.transpose()*givens_transformation;
-        givens_transformation = givens_transformation*temp_transformation.transpose();
+  MatrixXd givens_transformation, intermediate_transformation;
+  givens_transformation.setIdentity(m.rows(),m.rows());
+  intermediate_transformation.setIdentity(m.rows(),m.rows());
+
+  // compute orthogonal givens transformations     
+   for(int i = rank ; i < m.rows(); i++)
+   {
+       for(int j = rank-1 ; j >= 0; j--)
+      {           
+          JacobiRotation<float> G;
+          Vector2f v(m.col(j)(j),m.col(j)(i));
+          G.makeGivens(v.x(), v.y());
+          intermediate_transformation.setIdentity(m.rows(),m.rows());
+          intermediate_transformation(j,j) = G.c() ;
+          intermediate_transformation(i,i) = G.c() ;
+          intermediate_transformation(j,i) = G.s();
+          intermediate_transformation(i,j) = -G.s();    
+          m.applyOnTheLeft(j, i, G.adjoint());
+          givens_transformation = intermediate_transformation.transpose()*givens_transformation;
+      }    
+   }
+
+  return givens_transformation;
+  
+}
+
+void SotSolver::solve(MatrixXd &A, MatrixXd &b)
+{
+
+// do complete orthogonal decomposition 
+  MatrixXd L,Q,P;
+  // LQ decomposition
+  // select column pivoting
+  const string type = "column" ;
+  decomposeLQ(A,L,Q,P,type);
+  // check rank defeciency
+	int rank = 0;
+	const int rowsize = L.rows();
+	const int colsize = L.cols();
+	for(int k = 0; k < rowsize; k++)
+	{
+		 if(abs(L.col(k)(k)) > 0.00001)
+		 (rank = rank+1);
+		 else
+		 break;
       
-     }
-     
-  }*/
-     MatrixXd givens_transformation ;
-     givens_transformation.setIdentity(rowsize,rowsize);
-     cout << "Here is the givenstransformedmatrix :" << endl << P << endl;
-     for(int i = rank ; i < rowsize; i++)
-     {
-         for(int j = rank-1 ; j >= 0; j--)
-        { 
-            
-            JacobiRotation<float> G;
-            Vector2f v(m.col(j)(j),m.col(j)(i));
-            G.makeGivens(v.x(), v.y());
-            temp_transformation.setIdentity(rowsize,rowsize);
-            temp_transformation(j,j) = G.c() ;
-            temp_transformation(i,i) = G.c() ;
-            temp_transformation(j,i) = G.s();
-            temp_transformation(i,j) = -G.s();    
+	}
+  // triangularize L-Lower triangular matrix to match up with the rank of the system
+  MatrixXd GT; 
+  // rank not deficient
+  if (rank == rowsize)
+  {
+     GT.setIdentity(rowsize,rowsize);
+  }
+  else //rank deficient
+  {
+     // find Givens transformation to triangularize L
+     GT = makeGivensTransformation(L,rank);
+  }
+	MatrixXd q =  Q.block(0,0,colsize,rank);
+	MatrixXd l = L.block(0,0,rank,rank);
+	MatrixXd g = GT.block(0,0,rank,rowsize);
 
-            m.applyOnTheLeft(j, i, G.adjoint());
-            //cout << "Here is the givenstransformedmatrix :" << endl << m << endl;
-            givens_transformation = temp_transformation.transpose()*givens_transformation;
-            //givens_transformation = givens_transformation*temp_transformation.transpose();
-        }    
-     }
+  VectorXd b_sol = g*P.transpose()*b;
+  solveLowerTriangular(l, b_sol);
+	b = q*b_sol;
+  // solve L = Gt*Pt*b
 
-  //givens_transformation = P.transpose()*givens_transformation*P;
-  m = givens_transformation * L;
-  //cout << "Here is the GT * L" << endl << m << endl;
-  return givens_transformation.transpose();
-  
-}
-
-void SotSolver::solve(void)
-{
+  // 
 
 
 }

@@ -31,6 +31,7 @@ LINK_DIRECTORIES(${DYNAMIC_GRAPH_PYTHON_LIBRARY_DIRS} ${PYTHON_LIBRARY_DIRS}  ${
 ADD_LIBRARY(${LIBRARY_NAME}
   SHARED
   sot_solver.cpp
+  timer_utility.cpp
   )
   
 

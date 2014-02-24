@@ -36,6 +36,8 @@
 #include <iostream>
 #include <vector>
 
+#include "sot_solver/timer_utility.hh"
+
 using namespace Eigen;
 using namespace std;
 using namespace dynamicgraph;
@@ -57,13 +59,16 @@ public: /* --- CONSTRUCTOR ---- */
     /* --- SIGNALS --- */
     /* --- COMMANDS --- */
 	  void testsvd(void);
-	  MatrixXd testhouseholder(MatrixXd& A);
-	  MatrixXd givensmatrix(MatrixXd& P,MatrixXd& m);
-    void testgivensmatrix(void);
-	  void solve(void);
+	  void decomposeLQ(MatrixXd &A,MatrixXd &L,MatrixXd &Q,MatrixXd &P,const string& type);
+	  MatrixXd makeGivensTransformation(MatrixXd& m, const int rank);
+    void testsomething(void);
+	  
     void testsolver(void); 
     void pinv(MatrixXd &Linv);
     void createRandomPIMatrixOfRank(int desired_rank, int rows, int cols, MatrixXd& m);
+    //solvers
+    void solveLowerTriangular(MatrixXd& A, VectorXd& b);
+    void solve(MatrixXd &A, MatrixXd &b);
 
 	private: /* --- INTERNAL COMPUTATIONS --- */
 	  std::vector< Eigen::MatrixXd > Ctasks;

@@ -20,6 +20,7 @@ SET(PROJECT_DESCRIPTION "the best solver ever written")
 SET(PROJECT_URL "")
 SET(${PROJECT_NAME}_HEADERS
     include/sot_solver/sot_solver.hh
+    include/sot_solver/timer_utility.hh
 )
 SET(CXX_DISABLE_WERROR True)
 
